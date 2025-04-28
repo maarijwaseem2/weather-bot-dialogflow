@@ -4,17 +4,18 @@ This is a webhook server for a Weather Information and Forecast Bot built using 
 
 ## Features
 
-- Get current weather information for any city
-- Get weather forecasts for up to 8 days in the future
-- Integration with WeatherAPI.com for accurate weather data
+- Current weather information for any city
+- Weather forecasts for up to 8 days ahead
+- Natural language processing via Google Dialogflow ES
+- Webhook fulfillment using Node.js and Express
+- Integration with Open-Meteo API for weather data
 
 ## Technologies Used
 
-- Node.js
-- Express.js
-- Axios for API requests
-- Google Dialogflow ES for natural language processing
-- WeatherAPI.com for weather data
+- Google Dialogflow ES for natural language understanding
+- Node.js and Express for the webhook server
+- Open-Meteo API for weather data
+- ngrok for local webhook testing
 
 ## Setup Instructions
 
