@@ -1,61 +1,89 @@
 const express = require("express");
+const axios = require("axios");
 const bodyParser = require("body-parser");
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(bodyParser.json());
 
-// Simple test route
-app.get("/", (req, res) => {
-  res.send("Weather Bot Webhook Server is running!");
-});
+const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
+const WEATHER_API_URL = "https://api.weatherapi.com/v1";
 
-// Debug route to see what's coming in
-app.post("/debug", (req, res) => {
-  console.log("Debug request body:", JSON.stringify(req.body));
-  res.json({ message: "Debug request received" });
-});
-
-// Webhook route
-app.post("/webhook", (req, res) => {
-  console.log("Webhook called with:", JSON.stringify(req.body));
-  
+app.post("/webhook", async (req, res) => {
   try {
     const intentName = req.body.queryResult.intent.displayName;
     const parameters = req.body.queryResult.parameters;
-    const city = parameters.city || "unknown city";
-    
+    const city = parameters.city;
+    let date = parameters.date || "today";
+
     console.log("Intent:", intentName);
-    console.log("Parameters:", parameters);
-    
-    // Simple static responses for testing
+    console.log("City:", city);
+    console.log("Date:", date);
+    console.log("All parameters:", parameters);
+
     let response = "";
-    
+
     if (intentName === "GetCurrentWeather") {
-      response = `Current weather in ${city}: 28°C, partly cloudy. Humidity: 65%, Wind: 12 km/h.`;
+      const weatherData = await getCurrentWeather(city);
+      response = `Current weather in ${city}: ${weatherData.temp_c}°C, ${weatherData.condition.text}. Humidity: ${weatherData.humidity}%, Wind: ${weatherData.wind_kph} km/h.`;
     } else if (intentName === "GetWeatherForecast") {
-      const date = parameters.date ? new Date(parameters.date).toISOString().split('T')[0] : "today";
-      response = `Weather forecast for ${city} on ${date}: 30°C, mostly sunny. Min: 26°C, Max: 34°C.`;
-    } else {
-      response = `I received intent: ${intentName} with city: ${city}`;
+      const forecastData = await getWeatherForecast(city, date);
+      response = `Weather forecast for ${city} on ${forecastData.date}: ${forecastData.day.avgtemp_c}°C, ${forecastData.day.condition.text}. Min: ${forecastData.day.mintemp_c}°C, Max: ${forecastData.day.maxtemp_c}°C.`;
     }
-    
-    console.log("Sending response:", response);
-    
+
     res.json({
-      fulfillmentText: response
+      fulfillmentText: response,
     });
   } catch (error) {
     console.error("Error processing webhook:", error);
     res.json({
-      fulfillmentText: "Sorry, I encountered an error processing your request. Error: " + error.message
+      fulfillmentText:
+        "Sorry, I encountered an error while fetching the weather information.",
     });
   }
 });
 
-// Start server
-app.listen(PORT, "0.0.0.0", () => {
+async function getCurrentWeather(city) {
+  try {
+    const response = await axios.get(`${WEATHER_API_URL}/current.json`, {
+      params: {
+        key: WEATHER_API_KEY,
+        q: city,
+      },
+    });
+    return response.data.current;
+  } catch (error) {
+    console.error("Error fetching current weather:", error);
+    throw error;
+  }
+}
+
+async function getWeatherForecast(city, date) {
+  try {
+    const today = new Date();
+    const targetDate = date === "today" ? today : new Date(date);
+    const daysAhead = Math.min(
+      Math.floor((targetDate - today) / (1000 * 60 * 60 * 24)),
+      7
+    );
+
+    const response = await axios.get(`${WEATHER_API_URL}/forecast.json`, {
+      params: {
+        key: WEATHER_API_KEY,
+        q: city,
+        days: daysAhead + 1,
+      },
+    });
+
+    return response.data.forecast.forecastday[daysAhead];
+  } catch (error) {
+    console.error("Error fetching weather forecast:", error);
+    throw error;
+  }
+}
+
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
